@@ -15,6 +15,7 @@ export default function Landing() {
             </div>
 
             <div className="relative z-10 text-center px-4">
+                <img src="/logo.png" alt="ApnaGuest Logo" className="w-32 h-32 mx-auto mb-6 animate-fade-in" />
                 <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
                     ApnaGuest
                 </h1>

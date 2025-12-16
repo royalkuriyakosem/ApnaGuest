@@ -33,7 +33,7 @@ class TaskStatus(str, Enum):
     completed = "completed"
 
 class RoomStatus(str, Enum):
-    vacant = "vacant"
+    available = "available"
     occupied = "occupied"
     maintenance = "maintenance"
 
@@ -127,8 +127,8 @@ class AgentRating(AgentRatingBase):
 class RoomBase(BaseModel):
     room_number: str
     capacity: int
-    floor: int
-    status: RoomStatus = RoomStatus.vacant
+    rent: float
+    status: RoomStatus = RoomStatus.available
 
 class RoomCreate(RoomBase):
     pass
@@ -136,12 +136,12 @@ class RoomCreate(RoomBase):
 class RoomUpdate(BaseModel):
     room_number: Optional[str] = None
     capacity: Optional[int] = None
-    floor: Optional[int] = None
+    rent: Optional[float] = None
     status: Optional[RoomStatus] = None
 
 class Room(RoomBase):
-    id: UUID
-    created_at: datetime
+    id: int
+    created_at: Optional[datetime] = None # SQL model might not have created_at or it's server_default
 
     class Config:
         from_attributes = True

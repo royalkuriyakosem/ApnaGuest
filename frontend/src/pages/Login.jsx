@@ -6,15 +6,15 @@ export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const { signIn } = useAuth();
+    const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const { error } = await signIn(email, password);
+            const { error } = await login(email, password);
             if (error) throw error;
-            navigate('/');
+            navigate('/dashboard');
         } catch (err) {
             setError(err.message);
         }
