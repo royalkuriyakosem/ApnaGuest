@@ -10,6 +10,7 @@ import AdminTenants from './pages/admin/AdminTenants';
 import AdminRooms from './pages/admin/AdminRooms';
 import AdminComplaints from './pages/admin/AdminComplaints';
 import AdminPayments from './pages/admin/AdminPayments';
+import AdminRentMatrix from './pages/admin/AdminRentMatrix';
 import TenantDashboard from './pages/tenant/TenantDashboard';
 import TenantRoom from './pages/tenant/TenantRoom';
 import TenantPayments from './pages/tenant/TenantPayments';
@@ -69,6 +70,11 @@ function App() {
             <Route path="/admin/payments" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminPayments />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/rent-matrix" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminRentMatrix />
               </ProtectedRoute>
             } />
 

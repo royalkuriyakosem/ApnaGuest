@@ -122,14 +122,24 @@ export default function TenantPayments() {
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Month For</label>
-                            <input
-                                type="text"
-                                placeholder="e.g. October 2023"
+                            <select
                                 value={monthFor}
                                 onChange={(e) => setMonthFor(e.target.value)}
                                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                 required
-                            />
+                            >
+                                <option value="">Select Month</option>
+                                {Array.from({ length: 12 }, (_, i) => {
+                                    const d = new Date();
+                                    d.setMonth(d.getMonth() - 6 + i);
+                                    const monthYear = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+                                    return (
+                                        <option key={i} value={monthYear}>
+                                            {monthYear}
+                                        </option>
+                                    );
+                                })}
+                            </select>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">UPI Transaction ID</label>

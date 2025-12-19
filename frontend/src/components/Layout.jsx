@@ -51,6 +51,7 @@ export default function Layout() {
                             <NavLink to="/admin/tenants" icon={Users} label="Tenants" />
                             <NavLink to="/admin/rooms" icon={Home} label="Rooms" />
                             <NavLink to="/admin/payments" icon={CreditCard} label="Payments" />
+                            <NavLink to="/admin/rent-matrix" icon={CheckSquare} label="Rent/Month" />
                             <NavLink to="/admin/complaints" icon={ClipboardList} label="Complaints" />
                         </>
                     )}

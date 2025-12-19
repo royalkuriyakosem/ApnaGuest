@@ -1,45 +1,66 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
-from app.core.config import supabase
-from app.models.schemas import Tenant, TenantCreate
+from uuid import UUID
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.models.sql_models import Tenant as TenantModel, Room, User, RoomStatus, UserRole
+from app.models.schemas import TenantResponse, TenantCreate
+from app.api.deps import get_current_admin, get_current_user
 
 router = APIRouter()
 
-@router.get("/", response_model=List[Tenant])
-def get_tenants():
-    response = supabase.table("tenants").select("*").execute()
-    return response.data
+@router.get("/", response_model=List[TenantResponse])
+def get_tenants(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Admin can see all.
+    if current_user.role == UserRole.ADMIN:
+        return db.query(TenantModel).all()
+    else:
+        # Tenant can see own? Or forbidden?
+        # Let's return own profile
+         return db.query(TenantModel).filter(TenantModel.user_id == current_user.id).all()
 
-@router.post("/", response_model=Tenant)
-def create_tenant(tenant: TenantCreate):
-    # Check if room is vacant
-    room_response = supabase.table("rooms").select("status").eq("id", str(tenant.room_id)).execute()
-    if not room_response.data or room_response.data[0]['status'] != 'vacant':
-        raise HTTPException(status_code=400, detail="Room is not vacant or does not exist")
+@router.post("/", response_model=TenantResponse)
+def create_tenant_admin(tenant: TenantCreate, db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
+    # This duplicates /admin/allot-room logic but keeps /tenants endpoint alive
+    
+    # Check room
+    room = db.query(Room).filter(Room.id == tenant.room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.status != RoomStatus.VACANT:
+        raise HTTPException(status_code=400, detail="Room is not vacant")
 
     # Create tenant
-    response = supabase.table("tenants").insert(tenant.dict()).execute()
-    if not response.data:
-        raise HTTPException(status_code=400, detail="Could not create tenant")
+    new_tenant = TenantModel(
+        user_id=tenant.user_id,
+        room_id=room.id,
+        check_in_date=tenant.check_in_date,
+        check_out_date=tenant.check_out_date
+    )
     
-    # Update room status to occupied
-    supabase.table("rooms").update({"status": "occupied"}).eq("id", str(tenant.room_id)).execute()
+    # Update room
+    room.status = RoomStatus.OCCUPIED
     
-    return response.data[0]
+    db.add(new_tenant)
+    db.commit()
+    db.refresh(new_tenant)
+    return new_tenant
 
 @router.delete("/{tenant_id}")
-def remove_tenant(tenant_id: str):
-    # Get tenant to find room_id
-    tenant_res = supabase.table("tenants").select("room_id").eq("id", tenant_id).execute()
-    if not tenant_res.data:
-        raise HTTPException(status_code=404, detail="Tenant not found")
+def remove_tenant(tenant_id: UUID, db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
+    # tenant_id here refers to the ID of the Tenant record (allocation), NOT the user ID
+    tenant_record = db.query(TenantModel).filter(TenantModel.id == tenant_id).first()
+    if not tenant_record:
+        raise HTTPException(status_code=404, detail="Tenant record not found")
     
-    room_id = tenant_res.data[0]['room_id']
+    room_id = tenant_record.room_id
     
-    # Delete tenant
-    response = supabase.table("tenants").delete().eq("id", tenant_id).execute()
+    db.delete(tenant_record)
     
-    # Update room status to vacant
-    supabase.table("rooms").update({"status": "vacant"}).eq("id", room_id).execute()
+    # Update room status
+    room = db.query(Room).filter(Room.id == room_id).first()
+    if room:
+        room.status = RoomStatus.VACANT
     
+    db.commit()
     return {"message": "Tenant removed and room marked as vacant"}

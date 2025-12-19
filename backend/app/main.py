@@ -34,7 +34,7 @@ def seed_admin():
             password_hash=get_password_hash("123456"),
             full_name="System Admin",
             role=UserRole.ADMIN,
-            is_approved=True
+            is_active=True
         )
         db.add(admin_user)
         db.commit()

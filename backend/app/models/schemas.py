@@ -4,11 +4,21 @@ from datetime import date, datetime
 from enum import Enum
 from uuid import UUID
 
-# Enums
+# Enums (matching sql_models)
 class UserRole(str, Enum):
     admin = "admin"
     tenant = "tenant"
     service_agent = "service_agent"
+
+class RoomStatus(str, Enum):
+    vacant = "vacant"
+    occupied = "occupied"
+    maintenance = "maintenance"
+
+class ComplaintStatus(str, Enum):
+    open = "open"
+    in_progress = "in_progress"
+    resolved = "resolved"
 
 class ServiceType(str, Enum):
     plumber = "plumber"
@@ -16,109 +26,50 @@ class ServiceType(str, Enum):
     cleaner = "cleaner"
     other = "other"
 
-class AvailabilityStatus(str, Enum):
-    available = "available"
-    busy = "busy"
-    inactive = "inactive"
+class PaymentStatus(str, Enum):
+    paid = "paid"
+    pending = "pending"
+    overdue = "overdue"
 
-class ComplaintStatus(str, Enum):
-    open = "open"
-    assigned = "assigned"
-    in_progress = "in_progress"
-    resolved = "resolved"
-
-class TaskStatus(str, Enum):
-    assigned = "assigned"
-    in_progress = "in_progress"
-    completed = "completed"
-
-class RoomStatus(str, Enum):
-    available = "available"
-    occupied = "occupied"
-    maintenance = "maintenance"
-
-# Profile Schemas
-class ProfileBase(BaseModel):
+# User/Auth Schemas
+class UserBase(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
-    phone_number: Optional[str] = None
-    address: Optional[str] = None
-    aadhaar_id: Optional[str] = None
     role: UserRole = UserRole.tenant
     is_active: bool = True
 
-class ProfileCreate(ProfileBase):
+class UserCreate(UserBase):
     password: str
 
-class Profile(ProfileBase):
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserResponse(UserBase):
     id: UUID
     created_at: datetime
-
+    
     class Config:
         from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 # Service Agent Schemas
 class ServiceAgentBase(BaseModel):
     service_type: ServiceType
     experience_years: int = 0
-    availability_status: AvailabilityStatus = AvailabilityStatus.available
-    is_approved: bool = False
     rating: float = 0.0
+    is_verified: bool = False
 
 class ServiceAgentCreate(ServiceAgentBase):
     user_id: UUID
 
-class ServiceAgent(ServiceAgentBase):
+class ServiceAgentResponse(ServiceAgentBase):
     id: UUID
     user_id: UUID
-    created_at: datetime
-    # Optional: Include profile details if joined
-    profile: Optional[Profile] = None
-
-    class Config:
-        from_attributes = True
-
-# Complaint Schemas
-class ComplaintBase(BaseModel):
-    service_type: ServiceType
-    description: str
-    room_id: Optional[UUID] = None
-
-class ComplaintCreate(ComplaintBase):
-    pass
-
-class ComplaintUpdate(BaseModel):
-    status: Optional[ComplaintStatus] = None
-    agent_id: Optional[UUID] = None
-
-class Complaint(ComplaintBase):
-    id: UUID
-    tenant_id: UUID
-    agent_id: Optional[UUID] = None
-    status: ComplaintStatus
-    created_at: datetime
-    updated_at: datetime
-    
-    # Optional: Include related data
-    tenant: Optional[Profile] = None
-    agent: Optional[ServiceAgent] = None
-
-    class Config:
-        from_attributes = True
-
-# Agent Rating Schemas
-class AgentRatingBase(BaseModel):
-    rating: int = Field(..., ge=1, le=5)
-    feedback: Optional[str] = None
-
-class AgentRatingCreate(AgentRatingBase):
-    complaint_id: UUID
-    agent_id: UUID
-
-class AgentRating(AgentRatingBase):
-    id: UUID
-    tenant_id: UUID
-    created_at: datetime
+    user: Optional[UserResponse] = None
 
     class Config:
         from_attributes = True
@@ -126,44 +77,84 @@ class AgentRating(AgentRatingBase):
 # Room Schemas
 class RoomBase(BaseModel):
     room_number: str
-    capacity: int
-    rent: float
-    status: RoomStatus = RoomStatus.available
+    floor: int
+    rent_amount: float
+    capacity: int = 1
+    status: RoomStatus = RoomStatus.vacant
 
 class RoomCreate(RoomBase):
     pass
 
 class RoomUpdate(BaseModel):
     room_number: Optional[str] = None
+    floor: Optional[int] = None
+    rent_amount: Optional[float] = None
     capacity: Optional[int] = None
-    rent: Optional[float] = None
     status: Optional[RoomStatus] = None
 
-class Room(RoomBase):
-    id: int
-    created_at: Optional[datetime] = None # SQL model might not have created_at or it's server_default
-
+class RoomResponse(RoomBase):
+    id: UUID
+    
     class Config:
         from_attributes = True
 
-# Tenant Schemas
+# Tenant/Allocation Schemas
 class TenantBase(BaseModel):
     room_id: UUID
-    check_in_date: date
-    check_out_date: Optional[date] = None
-    rent_amount: float
+    check_in_date: Optional[datetime] = None
+    check_out_date: Optional[datetime] = None
 
 class TenantCreate(TenantBase):
     user_id: UUID
 
-class Tenant(TenantBase):
+class TenantResponse(TenantBase):
     id: UUID
     user_id: UUID
-    created_at: datetime
-    
-    # Optional: Include related data
-    user: Optional[Profile] = None
-    room: Optional[Room] = None
+    user: Optional[UserResponse] = None
+    room: Optional[RoomResponse] = None
 
+    class Config:
+        from_attributes = True
+
+# Complaint Schemas
+class ComplaintBase(BaseModel):
+    title: Optional[str] = None
+    description: str
+    service_type: ServiceType = ServiceType.other
+    room_id: Optional[UUID] = None
+
+class ComplaintCreate(ComplaintBase):
+    pass
+
+class ComplaintUpdate(BaseModel):
+    status: Optional[ComplaintStatus] = None
+    assigned_agent_id: Optional[UUID] = None
+
+class ComplaintResponse(ComplaintBase):
+    id: UUID
+    tenant_id: UUID # Reporter
+    status: ComplaintStatus
+    assigned_agent_id: Optional[UUID] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+# Payment Schemas
+class PaymentBase(BaseModel):
+    amount: float
+    month_for: str
+    status: PaymentStatus = PaymentStatus.pending
+    transaction_id: Optional[str] = None
+
+class PaymentCreate(PaymentBase):
+    tenant_id: UUID
+
+class PaymentResponse(PaymentBase):
+    id: UUID
+    tenant_id: UUID
+    payment_date: datetime
+    
     class Config:
         from_attributes = True
